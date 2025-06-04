@@ -1,107 +1,117 @@
-﻿import math
 
-board = [' ' for _ in range(9)]
+import tkinter as tk
+from tkinter import messagebox
+import copy
 
-def print_board():
-    print()
-    for i in range(3):
-        print('|', board[i * 3], '|', board[i * 3 + 1], '|', board[i * 3 + 2], '|')
-    print()
+PLAYER = "X"
+AI = "O"
 
-def is_winner(brd, player):
-    win_positions = [
-        [0, 1, 2], [3, 4, 5], [6, 7, 8],
-        [0, 3, 6], [1, 4, 7], [2, 5, 8],
-        [0, 4, 8], [2, 4, 6]
-    ]
-    for pos in win_positions:
-        if brd[pos[0]] == brd[pos[1]] == brd[pos[2]] == player:
-            return True
-    return False
+class TicTacToe:
+    def _init_(self, root):
+        self.root = root
+        self.root.title("Tic Tac Toe - AI vs You")
+        self.buttons = [[None for _ in range(3)] for _ in range(3)]
+        self.board = [[" " for _ in range(3)] for _ in range(3)]
+        self.create_board()
 
-def is_draw(brd):
-    return ' ' not in brd
+    def create_board(self):
+        for i in range(3):
+            for j in range(3):
+                btn = tk.Button(self.root, text=" ", font="Helvetica 32", width=5, height=2,
+                                command=lambda r=i, c=j: self.player_move(r, c))
+                btn.grid(row=i, column=j)
+                self.buttons[i][j] = btn
 
-def get_available_moves(brd):
-    return [i for i, cell in enumerate(brd) if cell == ' ']
+    def player_move(self, row, col):
+        if self.board[row][col] == " ":
+            self.buttons[row][col].config(text=PLAYER, state="disabled")
+            self.board[row][col] = PLAYER
+            if self.check_winner(self.board) or self.is_full(self.board):
+                self.end_game()
+            else:
+                self.root.after(500, self.ai_move)  # slight delay for better UX
 
-def minimax(brd, depth, is_maximizing):
-    if is_winner(brd, 'O'):
-        return 1
-    if is_winner(brd, 'X'):
-        return -1
-    if is_draw(brd):
-        return 0
+    def ai_move(self):
+        best = self.best_move(self.board)
+        if best:
+            row, col = best
+            self.board[row][col] = AI
+            self.buttons[row][col].config(text=AI, state="disabled")
+            if self.check_winner(self.board) or self.is_full(self.board):
+                self.end_game()
 
-    if is_maximizing:
-        best_score = -math.inf
-        for move in get_available_moves(brd):
-            brd[move] = 'O'
-            score = minimax(brd, depth + 1, False)
-            brd[move] = ' '
-            best_score = max(score, best_score)
-        return best_score
-    else:
-        best_score = math.inf
-        for move in get_available_moves(brd):
-            brd[move] = 'X'
-            score = minimax(brd, depth + 1, True)
-            brd[move] = ' '
-            best_score = min(score, best_score)
-        return best_score
+    def check_winner(self, board):
+        for line in board + list(zip(*board)):
+            if line[0] == line[1] == line[2] != " ":
+                return line[0]
+        if board[0][0] == board[1][1] == board[2][2] != " ":
+            return board[0][0]
+        if board[0][2] == board[1][1] == board[2][0] != " ":
+            return board[0][2]
+        return None
 
-def ai_move():
-    best_score = -math.inf
-    best_move = None
-    for move in get_available_moves(board):
-        board[move] = 'O'
-        score = minimax(board, 0, False)
-        board[move] = ' '
-        if score > best_score:
-            best_score = score
-            best_move = move
-    board[best_move] = 'O'
+    def is_full(self, board):
+        return all(cell != " " for row in board for cell in row)
 
-def play_game():
-    print("Tic Tac Toe — You (X) vs AI (O)")
-    print("Enter positions 1 to 9 as shown below:")
-    print("| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n| 7 | 8 | 9 |")
+    def minimax(self, board, is_max):
+        winner = self.check_winner(board)
+        if winner == AI:
+            return 1
+        elif winner == PLAYER:
+            return -1
+        elif self.is_full(board):
+            return 0
 
-    while True:
-        print_board()
+        if is_max:
+            best = -float('inf')
+            for i in range(3):
+                for j in range(3):
+                    if board[i][j] == " ":
+                        board[i][j] = AI
+                        val = self.minimax(board, False)
+                        board[i][j] = " "
+                        best = max(best, val)
+            return best
+        else:
+            best = float('inf')
+            for i in range(3):
+                for j in range(3):
+                    if board[i][j] == " ":
+                        board[i][j] = PLAYER
+                        val = self.minimax(board, True)
+                        board[i][j] = " "
+                        best = min(best, val)
+            return best
 
-        while True:
-            try:
-                move = int(input("Your move (1-9): ")) - 1
-                if move < 0 or move >= 9 or board[move] != ' ':
-                    print("Invalid move. Try again.")
-                else:
-                    board[move] = 'X'
-                    break
-            except ValueError:
-                print("Please enter a number from 1 to 9.")
+    def best_move(self, board):
+        best_val = -float('inf')
+        move = None
+        for i in range(3):
+            for j in range(3):
+                if board[i][j] == " ":
+                    board[i][j] = AI
+                    move_val = self.minimax(board, False)
+                    board[i][j] = " "
+                    if move_val > best_val:
+                        best_val = move_val
+                        move = (i, j)
+        return move
 
-        if is_winner(board, 'X'):
-            print_board()
-            print("🎉 You win!")
-            break
-        if is_draw(board):
-            print_board()
-            print("It's a draw!")
-            break
+    def end_game(self):
+        winner = self.check_winner(self.board)
+        if winner:
+            messagebox.showinfo("Game Over", f"{winner} wins!")
+        else:
+            messagebox.showinfo("Game Over", "It's a draw!")
+        self.root.after(100, self.reset_game)
 
-        print("AI is making a move...")
-        ai_move()
+    def reset_game(self):
+        self.board = [[" " for _ in range(3)] for _ in range(3)]
+        for row in self.buttons:
+            for btn in row:
+                btn.config(text=" ", state="normal")
 
-        if is_winner(board, 'O'):
-            print_board()
-            print("😔 AI wins!")
-            break
-        if is_draw(board):
-            print_board()
-            print("It's a draw!")
-            break
-
-if __name__ == "__main__":
-    play_game()
-
+if __name__ == "_main_":
+    root = tk.Tk()
+    game = TicTacToe(root)
+    root.mainloop()
